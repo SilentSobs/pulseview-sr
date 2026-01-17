@@ -1,17 +1,62 @@
-name: Build PulseView artifacts
+name: Build PulseView Windows
 
 on:
-  push:                # When the repo itself has a new commit on the master branch
+  push:
     branches:
       - master
-    tags:              # When a new tag was created
-  workflow_dispatch:   # When the workflow was started manually from github
+    tags:
+  workflow_dispatch:
   pull_request:
     types:
-      - labeled        # When a pull request received a new label (e.g. "provide_binaries")
-      - synchronize    # When a pull request's branch was updated with a new commit
+      - labeled
+      - synchronize
 
 jobs:
-  call-build-workflow:
-    name: Sigrok artifact builder
+  build-windows:
+    name: Build PulseView for Windows
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install Qt6
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.4.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          modules: 'qtbase qtdeclarative'
+      
+      - name: Install dependencies
+        run: |
+          choco install cmake ninja -y
+          choco install boost-msvc-14.2 -y
+      
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+      
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --config Release
+      
+      - name: Find executables
+        run: |
+          dir /s *.exe
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pulseview-windows
+          path: |
+            build/**/*.exe
+          retention-days: 30
+
+  call-sigrok-build:
+    name: Sigrok artifact builder (all platforms)
     uses: sigrokproject/sigrok-build/.github/workflows/build.yml@master
