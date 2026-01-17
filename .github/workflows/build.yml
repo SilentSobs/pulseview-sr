@@ -20,41 +20,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install Qt6
-        uses: jurplel/install-qt-action@v3
+      - name: Install MSYS2
+        uses: msys2/setup-msys2@v2
         with:
-          version: '6.4.2'
-          host: 'windows'
-          target: 'desktop'
-          arch: 'win64_msvc2019_64'
-          modules: 'qtbase qtdeclarative'
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-qt6-base mingw-w64-x86_64-boost mingw-w64-x86_64-libsigrok mingw-w64-x86_64-libsigrokdecode
       
-      - name: Install dependencies
-        run: |
-          choco install cmake ninja -y
-          choco install boost-msvc-14.2 -y
-      
-      - name: Configure CMake
+      - name: Build
+        shell: msys2 {0}
         run: |
           mkdir build
           cd build
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
-      
-      - name: Build
-        run: |
-          cd build
-          cmake --build . --config Release
-      
-      - name: Find executables
-        run: |
-          dir /s *.exe
+          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+          make -j$(nproc)
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: pulseview-windows
-          path: |
-            build/**/*.exe
+          path: build/pv/pulseview.exe
           retention-days: 30
 
   call-sigrok-build:
