@@ -20,20 +20,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install MSYS2
+      - name: Install MSYS2 dependencies
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
-          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-qt6-base mingw-w64-x86_64-boost mingw-w64-x86_64-libsigrok mingw-w64-x86_64-libsigrokdecode
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-qt6-base mingw-w64-x86_64-boost mingw-w64-x86_64-glib2 mingw-w64-x86_64-libusb autoconf automake libtool git
       
-      - name: Build
+      - name: Build libsigrok and libsigrokdecode
         shell: msys2 {0}
         run: |
+          cd /tmp
+          git clone https://github.com/sigrokproject/libsigrok.git
+          cd libsigrok
+          ./autogen.sh
+          ./configure --prefix=/mingw64
+          make -j$(nproc)
+          make install
+          
+          cd /tmp
+          git clone https://github.com/sigrokproject/libsigrokdecode.git
+          cd libsigrokdecode
+          ./autogen.sh
+          ./configure --prefix=/mingw64
+          make -j$(nproc)
+          make install
+      
+      - name: Build PulseView
+        shell: msys2 {0}
+        run: |
+          cd $GITHUB_WORKSPACE
           mkdir build
           cd build
-          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON ..
-          make -j1 VERBOSE=1
+          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+          make -j$(nproc)
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
